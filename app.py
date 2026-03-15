@@ -35,6 +35,9 @@ low, high = get_range_for_difficulty(difficulty)
 st.sidebar.caption(f"Range: {low} to {high}")
 st.sidebar.caption(f"Attempts allowed: {attempt_limit}")
 
+if "high_scores" not in st.session_state:
+    st.session_state.high_scores = load_high_scores()
+
 # Challenge 2: Per-difficulty high score tracker displayed in sidebar.
 st.sidebar.divider()
 st.sidebar.subheader("High Scores")
@@ -64,9 +67,6 @@ if "status" not in st.session_state:
 
 if "history" not in st.session_state:
     st.session_state.history = []
-
-if "high_scores" not in st.session_state:
-    st.session_state.high_scores = load_high_scores()
 
 if st.session_state.difficulty != difficulty:
     st.session_state.difficulty = difficulty
