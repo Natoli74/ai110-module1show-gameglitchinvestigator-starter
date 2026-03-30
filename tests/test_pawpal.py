@@ -66,3 +66,41 @@ def test_conflict_detection_flags_duplicate_times():
     assert len(warnings) == 1
     assert "Conflict" in warnings[0]
     assert "18:00" in warnings[0]
+
+
+def test_owner_save_and_load_roundtrip(tmp_path):
+    data_file = tmp_path / "data.json"
+
+    owner = Owner("Test User")
+    pet = owner.add_pet("Max", "Dog", 2)
+    pet.add_task(Task(description="Walk", time="09:00", frequency="daily"))
+
+    owner.save_to_json(str(data_file))
+    loaded = Owner.load_from_json(str(data_file))
+
+    assert loaded.name == "Test User"
+    assert "Max" in loaded.pets
+    assert loaded.pets["Max"].species == "Dog"
+    assert loaded.pets["Max"].tasks[0].description == "Walk"
+
+
+def test_owner_load_preserves_due_date(tmp_path):
+    data_file = tmp_path / "data.json"
+
+    owner = Owner("Test User")
+    pet = owner.add_pet("Luna", "Cat", 1)
+    pet.add_task(
+        Task(
+            description="Meds",
+            time="08:00",
+            frequency="weekly",
+            due_date=date(2026, 3, 31),
+        )
+    )
+
+    owner.save_to_json(str(data_file))
+    loaded = Owner.load_from_json(str(data_file))
+
+    loaded_task = loaded.pets["Luna"].tasks[0]
+    assert loaded_task.due_date == date(2026, 3, 31)
+    assert loaded_task.frequency == "weekly"

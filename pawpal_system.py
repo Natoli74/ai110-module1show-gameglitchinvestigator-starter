@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import json
+from pathlib import Path
 from dataclasses import dataclass, field
 from datetime import date, datetime, timedelta
 from typing import Optional
@@ -83,6 +85,75 @@ class Owner:
     def all_pets(self) -> list[Pet]:
         """Return all pets for this owner."""
         return list(self.pets.values())
+
+    def save_to_json(self, filepath: str = "data.json") -> None:
+        """Persist owner, pets, and tasks to a JSON file."""
+        payload = {
+            "name": self.name,
+            "pets": {
+                pet_name: {
+                    "name": pet.name,
+                    "species": pet.species,
+                    "age": pet.age,
+                    "tasks": [
+                        {
+                            "description": task.description,
+                            "time": task.time,
+                            "frequency": task.frequency,
+                            "due_date": task.due_date.isoformat(),
+                            "completed": task.completed,
+                        }
+                        for task in pet.tasks
+                    ],
+                }
+                for pet_name, pet in self.pets.items()
+            },
+        }
+
+        with open(filepath, "w", encoding="utf-8") as file_handle:
+            json.dump(payload, file_handle, indent=2)
+
+    @classmethod
+    def load_from_json(cls, filepath: str = "data.json") -> "Owner":
+        """Load owner, pets, and tasks from a JSON file if present."""
+        if not Path(filepath).exists():
+            return cls(name="PawPal User")
+
+        try:
+            with open(filepath, "r", encoding="utf-8") as file_handle:
+                payload = json.load(file_handle)
+        except (json.JSONDecodeError, OSError):
+            return cls(name="PawPal User")
+
+        owner = cls(name=payload.get("name", "PawPal User"))
+
+        for pet_name, pet_payload in payload.get("pets", {}).items():
+            pet = Pet(
+                name=pet_payload.get("name", pet_name),
+                species=pet_payload.get("species", "Unknown"),
+                age=int(pet_payload.get("age", 0)),
+            )
+
+            for task_payload in pet_payload.get("tasks", []):
+                due_date_str = task_payload.get("due_date", date.today().isoformat())
+                try:
+                    task_due_date = date.fromisoformat(due_date_str)
+                except ValueError:
+                    task_due_date = date.today()
+
+                pet.add_task(
+                    Task(
+                        description=task_payload.get("description", "Task"),
+                        time=task_payload.get("time", "09:00"),
+                        frequency=task_payload.get("frequency", "once"),
+                        due_date=task_due_date,
+                        completed=bool(task_payload.get("completed", False)),
+                    )
+                )
+
+            owner.pets[pet.name] = pet
+
+        return owner
 
 
 class Scheduler:

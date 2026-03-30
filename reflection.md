@@ -11,20 +11,20 @@
 ### Building blocks (objects, attributes, methods)
 
 1. **Task**
-	 - Attributes: description, time, frequency, due_date, completed.
-	 - Methods: `mark_complete()` to update status and create recurrence, `scheduled_at()` to support sorting.
+   - Attributes: description, time, frequency, due_date, completed.
+   - Methods: `mark_complete()` to update status and create recurrence, `scheduled_at()` to support sorting.
 
 2. **Pet**
-	 - Attributes: name, species, age, tasks.
-	 - Methods: `add_task()` and `task_count()`.
+   - Attributes: name, species, age, tasks.
+   - Methods: `add_task()` and `task_count()`.
 
 3. **Owner**
-	 - Attributes: owner name, dictionary of pets.
-	 - Methods: `add_pet()`, `get_pet()`, and `all_pets()`.
+   - Attributes: owner name, dictionary of pets.
+   - Methods: `add_pet()`, `get_pet()`, and `all_pets()`.
 
 4. **Scheduler**
-	 - Attributes: reference to one Owner.
-	 - Methods: `get_all_tasks()`, `sort_by_time()`, `filter_tasks()`, `add_task_to_pet()`, `mark_task_complete()`, `detect_conflicts()`, `todays_schedule()`.
+   - Attributes: reference to one Owner.
+   - Methods: `get_all_tasks()`, `sort_by_time()`, `filter_tasks()`, `add_task_to_pet()`, `mark_task_complete()`, `detect_conflicts()`, `todays_schedule()`.
 
 ### UML (Mermaid)
 
@@ -88,3 +88,7 @@ The conflict detector currently flags only exact date/time collisions. This is s
 ## AI Strategy Reflection
 
 The most effective Copilot-assisted patterns were generating class skeletons quickly, drafting test cases for each behavior, and filling repetitive UI wiring code between form inputs and backend methods. One suggestion I modified was an over-abstracted scheduler interface that introduced unnecessary helper layers; I kept a simpler API to preserve readability for a learning project. Using separate chat sessions by phase was useful because architecture, algorithms, and testing each had different goals and constraints. The main lesson was that AI is fast at scaffolding, but I still needed to be the lead architect deciding boundaries, complexity level, and which suggestions to reject.
+
+## Optional Extension Chosen
+
+I chose Challenge 2 (Data Persistence with Agent Mode). I used Agent Mode first to map exactly where save and load should happen, then implemented save_to_json and load_from_json on the Owner class using custom dictionary conversion and ISO date serialization. I updated Streamlit startup so it loads data.json into session state and wrote saves after every mutation action. This extension made the app feel much more realistic because pets and tasks now survive restarts.

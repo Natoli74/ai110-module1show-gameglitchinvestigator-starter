@@ -28,6 +28,27 @@ The scheduler includes lightweight algorithmic helpers:
 
 Tradeoff: conflict detection currently checks exact date/time matches only. It does not detect partial overlaps because tasks do not include durations.
 
+## Challenge 2: Data Persistence with Agent Mode
+
+This project implements Challenge 2 by persisting PawPal+ data to data.json.
+
+- Owner persistence methods:
+  - save_to_json(filepath="data.json")
+  - load_from_json(filepath="data.json")
+- App startup flow:
+  - app.py loads existing data.json into session state if present.
+  - If no data file exists, a new Owner object is created.
+- Save triggers:
+  - After adding a pet
+  - After adding a task
+  - After marking a task complete
+
+How Agent Mode was used:
+
+1. Asked Explore Agent to propose exact method signatures and app integration points for save/load.
+2. Used a custom dictionary conversion strategy for JSON serialization (including ISO date conversion) rather than adding a new dependency.
+3. Added persistence round-trip tests to verify pets, tasks, and due dates survive restart.
+
 ## System Design (Mermaid UML)
 
 ```mermaid

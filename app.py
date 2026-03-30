@@ -1,4 +1,5 @@
 from datetime import date
+from pathlib import Path
 
 import streamlit as st
 
@@ -8,7 +9,10 @@ from pawpal_system import Owner, Scheduler, Task
 def init_state() -> None:
     """Initialize and persist Owner and Scheduler objects in session state."""
     if "owner" not in st.session_state:
-        st.session_state.owner = Owner(name="PawPal User")
+        if Path("data.json").exists():
+            st.session_state.owner = Owner.load_from_json("data.json")
+        else:
+            st.session_state.owner = Owner(name="PawPal User")
     if "scheduler" not in st.session_state:
         st.session_state.scheduler = Scheduler(st.session_state.owner)
 
@@ -54,6 +58,7 @@ with left_col:
             st.error("Please provide a pet name.")
         else:
             owner.add_pet(pet_name.strip(), species.strip() or "Unknown", int(age))
+            owner.save_to_json("data.json")
             st.success(f"Added pet: {pet_name.strip()}")
 
 with right_col:
@@ -81,6 +86,7 @@ with right_col:
                     due_date=due_date,
                 )
                 scheduler.add_task_to_pet(selected_pet, task)
+                owner.save_to_json("data.json")
                 st.success(f"Added task to {selected_pet}: {description.strip()}")
 
 st.divider()
@@ -162,6 +168,7 @@ else:
                 complete_pet,
                 pending_index_lookup[selected_task_label],
             )
+            owner.save_to_json("data.json")
             st.success("Task marked complete.")
             if next_task:
                 st.info(
