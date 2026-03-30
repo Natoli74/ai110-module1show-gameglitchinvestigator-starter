@@ -1,31 +1,90 @@
-# 💭 Reflection: Game Glitch Investigator
+# Reflection: PawPal+ Build
 
-Answer each question in 3 to 5 sentences. Be specific and honest about what actually happened while you worked. This is about your process, not trying to sound perfect.
+## System Design
 
-## 1. What was broken when you started?
+### Core user actions
 
-When we first ran the app, during breakouts, the sidebar showed a difficulty selector, a range, and an attempt counter — but two significant bugs made the game broken in practice. First, the guess input was a plain text field (`st.text_input`) with no enforcement of the difficulty-based range, so a player on Easy (1–20) could type 500 and the game would accept it without complaint. Second, changing the difficulty in the sidebar updated the labels and the secret number's range in the display, but the input field itself still accepted any number regardless of the new range, meaning the stated rules and the actual rules were always out of sync. Together these bugs meant the game's difficulty setting was essentially cosmetic and the stated boundaries were meaningless.
+1. A pet owner can add and manage multiple pets, each with basic profile information.
+2. A pet owner can schedule care tasks (for example feeding, walks, or medication) with a date, time, and recurrence rule.
+3. A pet owner can review today’s schedule in a clear, sorted list, then complete tasks and receive conflict warnings when tasks overlap.
 
----
+### Building blocks (objects, attributes, methods)
 
-## 2. How did you use AI as a teammate?
+1. **Task**
+	 - Attributes: description, time, frequency, due_date, completed.
+	 - Methods: `mark_complete()` to update status and create recurrence, `scheduled_at()` to support sorting.
 
-I used GitHub Copilot (The Auto flag was on and it triggered GPT 5.4, 5.3 and Claude Sonnet 4.6 model) throughout this project for both bug analysis and feature implementation. For the range-enforcement bug, Copilot correctly suggested replacing `st.text_input` with `st.number_input(min_value=low, max_value=high, step=1, value=None)` — I verified this by running the app and confirming the input widget's arrow controls stop at the difficulty boundaries and the field refuses numbers outside the range. For the high score feature, Copilot initially suggested persisting scores with `pickle`, which would be a security risk if the file were ever loaded from an untrusted source; I overrode that and kept the implementation as plain JSON, which is both safe and human-readable, and verified it by winning a round and inspecting the generated `high_scores.json` file.
+2. **Pet**
+	 - Attributes: name, species, age, tasks.
+	 - Methods: `add_task()` and `task_count()`.
 
----
+3. **Owner**
+	 - Attributes: owner name, dictionary of pets.
+	 - Methods: `add_pet()`, `get_pet()`, and `all_pets()`.
 
-## 3. Debugging and testing your fixes
+4. **Scheduler**
+	 - Attributes: reference to one Owner.
+	 - Methods: `get_all_tasks()`, `sort_by_time()`, `filter_tasks()`, `add_task_to_pet()`, `mark_task_complete()`, `detect_conflicts()`, `todays_schedule()`.
 
-For each fix I used two verification passes: a manual run of the Streamlit app to confirm the behavior changed visually, followed by `pytest` to confirm the underlying logic functions held up. The most informative automated test was `test_parse_guess_decimal_truncates_out_of_range`, which checks that the string `"0.9"` is rejected even though it looks close to a valid number — the function converts it to `int(float("0.9")) = 0`, which falls below the lower bound of 1. That test revealed the edge case where Python's float-to-int truncation can silently push a value out of range. Copilot helped me think through a list of adversarial inputs (negative numbers, very large numbers, whitespace, `None`) by asking it to enumerate inputs that could bypass a simple integer check; I then translated each into a concrete pytest case and confirmed they all passed.
+### UML (Mermaid)
 
----
+```mermaid
+classDiagram
+		class Task {
+			+description: str
+			+time: str
+			+frequency: str
+			+due_date: date
+			+completed: bool
+			+mark_complete() Optional~Task~
+			+scheduled_at() datetime
+		}
 
-## 4. What did you learn about Streamlit and state?
+		class Pet {
+			+name: str
+			+species: str
+			+age: int
+			+tasks: list~Task~
+			+add_task(task: Task) None
+			+task_count() int
+		}
 
-Streamlit re-executes the entire Python script from top to bottom every time the user interacts with the page — clicking a button, typing in a field, or changing a selector all trigger a full rerun. In a naive implementation, `secret = random.randint(low, high)` sits at the top level and therefore generates a brand-new number on every rerun, which is why the secret kept changing. I would explain it to a friend like this: imagine a whiteboard that gets erased and redrawn from scratch every time you press a button — unless you write something in a locked drawer (`st.session_state`), it disappears. The fix in this starter code was already in place via `if "secret" not in st.session_state: st.session_state.secret = random.randint(low, high)`, which writes the secret to session state only once; on subsequent reruns the condition is false and the value survives. The same pattern was applied to difficulty so that switching difficulty explicitly triggers a reset rather than a silent one.
+		class Owner {
+			+name: str
+			+pets: dict~str, Pet~
+			+add_pet(name: str, species: str, age: int) Pet
+			+get_pet(name: str) Optional~Pet~
+			+all_pets() list~Pet~
+		}
 
----
+		class Scheduler {
+			+owner: Owner
+			+get_all_tasks(include_completed: bool) list~(str, Task)~
+			+sort_by_time(tasks) list~(str, Task)~
+			+filter_tasks(pet_name, completed) list~(str, Task)~
+			+add_task_to_pet(pet_name: str, task: Task) bool
+			+mark_task_complete(pet_name: str, task_index: int) Optional~Task~
+			+detect_conflicts() list~str~
+			+todays_schedule() list~(str, Task)~
+		}
 
-## 5. Looking ahead: your developer habits
+		Owner "1" o-- "many" Pet : has
+		Pet "1" o-- "many" Task : contains
+		Scheduler "1" --> "1" Owner : manages
+```
 
-Next time I use AI, I will be more cautious about "easy" fixes that ignore framework-specific patterns, as I learned that the AI often suggests general Python solutions that aren't optimized for Streamlit's reactive nature. The habit I want to carry forward is writing a failing test before considering a bug fixed.
+## 1a. Initial design
+
+My initial design used four classes with clear boundaries: `Task` as the atomic unit of work, `Pet` as the owner of tasks, `Owner` as the manager of pets, and `Scheduler` as the orchestrator for sorting and querying. This helped keep the UI thin and focused on input/output while all rules lived in backend methods. I intentionally used dataclasses for `Task` and `Pet` because they are mostly structured data with a few helper behaviors. The `Scheduler` acts as the system brain and keeps multi-pet operations in one place.
+
+## 1b. Design changes
+
+I originally planned to keep recurrence logic inside `Scheduler`, but moved task cloning into `Task.mark_complete()` so the rule is attached to the object that knows its own frequency. I also added a `due_date` field instead of only `time`, because recurrence and sorting are cleaner when date and time are explicit. Another change was adding `Scheduler.add_task_to_pet()` so UI code does not directly mutate nested collections. These changes reduced coupling and made tests easier to write.
+
+## 2b. Tradeoffs
+
+The conflict detector currently flags only exact date/time collisions. This is simple and fast, but it does not capture partial overlap (for example one long task that spans two short tasks) because tasks do not track duration. I kept this lightweight behavior to avoid premature complexity in the first implementation. If needed later, the model can add task duration and use interval overlap checks.
+
+## AI Strategy Reflection
+
+The most effective Copilot-assisted patterns were generating class skeletons quickly, drafting test cases for each behavior, and filling repetitive UI wiring code between form inputs and backend methods. One suggestion I modified was an over-abstracted scheduler interface that introduced unnecessary helper layers; I kept a simpler API to preserve readability for a learning project. Using separate chat sessions by phase was useful because architecture, algorithms, and testing each had different goals and constraints. The main lesson was that AI is fast at scaffolding, but I still needed to be the lead architect deciding boundaries, complexity level, and which suggestions to reject.

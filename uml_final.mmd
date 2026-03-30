@@ -1,0 +1,42 @@
+classDiagram
+    class Task {
+      +description: str
+      +time: str
+      +frequency: str
+      +due_date: date
+      +completed: bool
+      +mark_complete() Optional~Task~
+      +scheduled_at() datetime
+    }
+
+    class Pet {
+      +name: str
+      +species: str
+      +age: int
+      +tasks: list~Task~
+      +add_task(task: Task) None
+      +task_count() int
+    }
+
+    class Owner {
+      +name: str
+      +pets: dict~str, Pet~
+      +add_pet(name: str, species: str, age: int) Pet
+      +get_pet(name: str) Optional~Pet~
+      +all_pets() list~Pet~
+    }
+
+    class Scheduler {
+      +owner: Owner
+      +get_all_tasks(include_completed: bool) list~(str, Task)~
+      +sort_by_time(tasks) list~(str, Task)~
+      +filter_tasks(pet_name, completed) list~(str, Task)~
+      +add_task_to_pet(pet_name: str, task: Task) bool
+      +mark_task_complete(pet_name: str, task_index: int) Optional~Task~
+      +detect_conflicts() list~str~
+      +todays_schedule() list~(str, Task)~
+    }
+
+    Owner "1" o-- "many" Pet : has
+    Pet "1" o-- "many" Task : contains
+    Scheduler "1" --> "1" Owner : manages
